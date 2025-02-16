@@ -8,4 +8,4 @@ df2 = pd.read_csv('Datasets/Train_Outpatientdata-1542865627584.csv')
 appended_df = pd.concat([df1, df2])
 
 # Save the appended dataframe to a csv file with appropriate path
-appended_df.to_csv('Datasets/outpatient_appended')
+appended_df.to_csv('Datasets/outpatient_appended.csv')
