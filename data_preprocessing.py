@@ -218,7 +218,9 @@ def merge_data():
     train_data.to_csv("data/train_data.csv", index=False)
     unlabeled_data.to_csv("data/unlabeled_data.csv", index=False)
 
+
 def correct_codes():
+    # Create a library to map datatypes correctly
     dtype_mapping = {
         "DiagnosisGroupCode": str,
         "DOD": str,
@@ -226,6 +228,7 @@ def correct_codes():
         **{f"ClmDiagnosisCode_{i}": str for i in range(1, 11)}
     }
 
+    # Identify date columns
     date_columns = ["ClaimStartDt", "ClaimEndDt", "DOB", "DOD", "AdmissionDt", "DischargeDt"]
 
     train_data = pd.read_csv("data/train_data.csv", dtype=dtype_mapping, parse_dates=date_columns)
@@ -233,6 +236,7 @@ def correct_codes():
 
     date_format = "%Y-%m-%d"
 
+    # Convert date columns
     for col in ["AdmissionDt", "DischargeDt", "DOD"]:
         if col in train_data.columns:
             train_data[col] = pd.to_datetime(train_data[col], format=date_format, errors="coerce")
@@ -253,7 +257,8 @@ def correct_codes():
             code = code[:-2]
 
         return code
-    
+
+    # dealing with various NaN formats across records
     for col in diagnosis_columns + procedure_columns:
         train_data[col] = train_data[col].replace(
             {"nan": pd.NA, "0nan": pd.NA, "NaN": pd.NA, "NAN": pd.NA, "<NA>": pd.NA, "": pd.NA},
@@ -262,6 +267,7 @@ def correct_codes():
 
         train_data[col] = train_data[col].astype("string").apply(fix_icd_format)
 
+    # apply the function to fix the format of codes
     def map_category(code, category_dict):
         """Maps an ICD-9 code to a category based on provided ranges."""
         if pd.isna(code) or code=="":
@@ -279,7 +285,8 @@ def correct_codes():
                 return category
 
         return "Unknown"
-    
+
+    # Define the ranges for diagnosis and procedure categories
     diagnosis_category_map = {
         (1, 139): "Infectious & Parasitic Diseases",
         (140, 239): "Neoplasms",
@@ -299,6 +306,7 @@ def correct_codes():
         (800, 999): "Injury and Poisoning",
     }
 
+    # Create new procedure category columns
     for col in diagnosis_columns:
         train_data[col] = train_data[col].astype(str).replace({"<NA>": ""}).str.strip().str.upper()
         train_data[f"{col}_Category"] = train_data[col].apply(lambda x: map_category(x, diagnosis_category_map))
@@ -327,6 +335,7 @@ def correct_codes():
         train_data[col] = train_data[col].astype(str).replace({"<NA>": ""}).str.strip().str.upper()
         train_data[f"{col}_Category"] = train_data[col].apply(lambda x: map_category(x, procedure_category_map))
 
+    # Create PrimaryProcedure column from first element
     train_data["PrimaryProcedure"] = (
     train_data["ClmProcedureCode_1"]
         .astype(str)
@@ -335,12 +344,14 @@ def correct_codes():
         .str.zfill(4)
     )
 
+    # Fill missing values in PrimaryProcedure if completely empty
     train_data["PrimaryProcedure"] = train_data["PrimaryProcedure"].fillna("Unknown")
 
     train_data["NumProcedures"] = train_data[procedure_columns].notna().sum(axis=1)
 
     proc_desc = pd.read_excel("medical_codes/CMS32_DESC_LONG_SHORT_SG.xlsx", dtype=str)
 
+    # Rename columns relevant to procedures
     proc_desc.rename(columns={
         "PROCEDURE CODE": "ProcedureCode",
         "LONG DESCRIPTION": "PrimaryProcedure_LongDesc",
@@ -348,6 +359,7 @@ def correct_codes():
     }, inplace=True)
     proc_desc["ProcedureCode"] = proc_desc["ProcedureCode"].astype(str).str.zfill(4)
 
+    # Merge procedure descriptions from XLSX
     train_data = train_data.merge(proc_desc, left_on="PrimaryProcedure", right_on="ProcedureCode", how="left")
 
     train_data.drop(columns=["ProcedureCode"], inplace=True, errors="ignore")
@@ -356,10 +368,12 @@ def correct_codes():
     dx_desc.rename(columns={"DIAGNOSIS CODE": "DiagnosisCode"}, inplace=True)
     dx_desc["DiagnosisCode"] = dx_desc["DiagnosisCode"].astype(str).str.zfill(4)
 
+    # Merge diagnosis descriptions from XLSX
     for col in diagnosis_columns:
         if col in train_data.columns:
             train_data = train_data.merge(dx_desc, left_on=col, right_on="DiagnosisCode", how="left", suffixes=("", f"_{col}"))
 
+    # Drop numerical reference columns
     columns_to_drop = [
         "DiagnosisGroupCode",
         *diagnosis_columns,
@@ -369,6 +383,7 @@ def correct_codes():
     ]
     train_data.drop(columns=[col for col in columns_to_drop if col in train_data.columns], inplace=True, errors="ignore")
 
+    # fix some naming issues
     for i in range(1, 11):
         if f"LONG DESCRIPTION_ClmDiagnosisCode_{i}" in train_data.columns:
             train_data.rename(columns={
@@ -376,11 +391,13 @@ def correct_codes():
                 f"SHORT DESCRIPTION_ClmDiagnosisCode_{i}": f"ClmDiagnosisCode_{i}_ShortDesc"
             }, inplace=True)
 
+    # fixing naming issue with first column
     if "LONG DESCRIPTION" in train_data.columns:
         train_data.rename(columns={"LONG DESCRIPTION": "ClmDiagnosisCode_1_LongDesc"}, inplace=True)
     if "SHORT DESCRIPTION" in train_data.columns:
         train_data.rename(columns={"SHORT DESCRIPTION": "ClmDiagnosisCode_1_ShortDesc"}, inplace=True)
 
+    # Create flags for unknown procedures and diagnoses
     num_diagnosis_desc = 10
 
     unknown_procedure_count = (train_data[["PrimaryProcedure_LongDesc", "PrimaryProcedure_ShortDesc"]] == "Unknown").sum(axis=1)
