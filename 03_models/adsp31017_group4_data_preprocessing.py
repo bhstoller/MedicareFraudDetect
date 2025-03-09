@@ -178,7 +178,7 @@ def apply_encoding(df, cols):
         df[col] = le.fit_transform(df[col])
 
 def merge_data():
-    raw_data_location = "data/raw/"
+    raw_data_location = "../01_data/raw/"
     train_inpatient = pd.read_csv(raw_data_location + "Train_Inpatientdata-1542865627584.csv", dtype={"DiagnosisGroupCode": str})
     train_outpatient = pd.read_csv(raw_data_location + "Train_Outpatientdata-1542865627584.csv")
     train_beneficiaries = pd.read_csv(raw_data_location + "Train_Beneficiarydata-1542865627584.csv", dtype={"DOD": str})
@@ -349,7 +349,7 @@ def correct_codes():
 
     train_data["NumProcedures"] = train_data[procedure_columns].notna().sum(axis=1)
 
-    proc_desc = pd.read_excel("medical_codes/CMS32_DESC_LONG_SHORT_SG.xlsx", dtype=str)
+    proc_desc = pd.read_excel("../01_data/medical_codes/CMS32_DESC_LONG_SHORT_SG.xlsx", dtype=str)
 
     # Rename columns relevant to procedures
     proc_desc.rename(columns={
@@ -364,7 +364,7 @@ def correct_codes():
 
     train_data.drop(columns=["ProcedureCode"], inplace=True, errors="ignore")
 
-    dx_desc = pd.read_excel("medical_codes/CMS32_DESC_LONG_SHORT_DX.xlsx", dtype=str)
+    dx_desc = pd.read_excel("../01_data/medical_codes/CMS32_DESC_LONG_SHORT_DX.xlsx", dtype=str)
     dx_desc.rename(columns={"DIAGNOSIS CODE": "DiagnosisCode"}, inplace=True)
     dx_desc["DiagnosisCode"] = dx_desc["DiagnosisCode"].astype(str).str.zfill(4)
 
