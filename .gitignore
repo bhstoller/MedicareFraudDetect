@@ -5,3 +5,6 @@
 ~$sp_31017_meeting_notes_250216.docx
 *.html
 *.pyc
+/01_data/raw
+03_models/data/unlabeled_data.csv
+*.csv
